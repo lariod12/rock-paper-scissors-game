@@ -213,6 +213,39 @@
             opacity: 0;
             /* Hide opponent's health bar and avatar initially */
         }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .vote-buttons {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -251,6 +284,16 @@
                 <button class="choice-btn" onclick="makeChoice('bao')">✋ Bao</button>
             </div>
             <div id="result"></div>
+            <div id="gameEndModal" class="modal hidden">
+                <div class="modal-content">
+                    <div id="gameEndMessage"></div>
+                    <div id="voteMessage"></div>
+                    <div class="vote-buttons">
+                        <button id="voteYes" class="choice-btn">Chơi lại</button>
+                        <button id="voteNo" class="choice-btn">Thoát phòng</button>
+                    </div>
+                </div>
+            </div>
             <div id="waitingMessage"></div>
         </div>
     </div>
@@ -263,7 +306,8 @@
         let player1Health = 100;
         let player2Health = 100;
         const DAMAGE_AMOUNT = 20;
-        let gameResultDisplayed = false; // Flag to track if game result is displayed
+        let gameResultDisplayed = false;
+        let hasVoted = false;
 
         // Add these new variables
         let playerHealth = 100;
@@ -275,7 +319,9 @@
             document.getElementById('playerHealth').style.width = `${isPlayer1 ? player1Health : player2Health}%`;
         }
 
-        // --- Socket event listeners ---
+        // --- Socket event listeners ---// Add new socket event listeners
+        socket.on('playerVoted', handlePlayerVoted);
+        socket.on('rematchResult', handleRematchResult);
         socket.on('roomCreated', handleRoomCreated);
         socket.on('joinRoom', handleJoinRoom);
         socket.on('gameStart', handleGameStart);
@@ -283,22 +329,42 @@
         socket.on('roomError', handleRoomError);
         socket.on('opponentMadeChoice', handleOpponentMadeChoice);
         socket.on('playerDisconnected', handlePlayerDisconnected);
+        socket.on('playerLeft', handlePlayerLeft);
+        socket.on('forceRoomExit', handleForceRoomExit);
+        // Add the health sync listener here
+        socket.on('healthSync', ({ player1Health: p1Health, player2Health: p2Health }) => {
+            player1Health = p1Health;
+            player2Health = p2Health;
+            const currentPlayerHealth = isPlayer1 ? p1Health : p2Health;
+            document.getElementById('playerHealth').style.width = `${currentPlayerHealth}%`;
+        });
+
+
         // --- End of Socket event listeners ---
+        function handleForceRoomExit(message) {
+            // Hide the game end modal
+            document.getElementById('gameEndModal').classList.add('hidden');
+
+            // Show the exit message
+            alert(message);
+
+            // Clear game state
+            currentRoom = null;
+            isPlayer1 = false;
+            player1Health = 100;
+            player2Health = 100;
+            gameResultDisplayed = false;
+            hasVoted = false;
+
+            // Redirect to main lobby
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        }
 
         function updatePlayerLabels() {
-            const currentPlayerCard = isPlayer1 ? 'player1Card' : 'player2Card';
-            const otherPlayerCard = isPlayer1 ? 'player2Card' : 'player1Card';
-
-            document.getElementById(currentPlayerCard).classList.add('current-player');
-            document.getElementById(otherPlayerCard).classList.remove('current-player');
-
-            if (isPlayer1) {
-                document.getElementById('player1Role').textContent = '(Bạn)';
-                document.getElementById('player2Role').textContent = '(Đối thủ)';
-            } else {
-                document.getElementById('player1Role').textContent = '(Đối thủ)';
-                document.getElementById('player2Role').textContent = '(Bạn)';
-            }
+            document.getElementById('playerName').textContent = isPlayer1 ? 'Player 1' : 'Player 2';
+            document.getElementById('playerRole').textContent = '(Bạn)';
         }
 
 
@@ -351,13 +417,13 @@
             document.getElementById('gameControls').classList.remove('hidden');
             document.getElementById('playerCard').classList.remove('winner-effect');
             gameResultDisplayed = false;
+            hasVoted = false;
         }
 
         function resetHealth() {
             player1Health = 100;
             player2Health = 100;
-            document.getElementById('player1Health').style.width = '100%';
-            document.getElementById('player2Health').style.width = '100%';
+            document.getElementById('playerHealth').style.width = '100%';
         }
 
         function createRoom() {
@@ -386,21 +452,18 @@
         // --- Socket event handler functions ---
         function handleRoomCreated(roomId) {
             currentRoom = roomId;
-            isPlayer1 = true; // Room creator is Player 1
+            isPlayer1 = true;
             document.getElementById('initialLobby').classList.add('hidden');
             document.getElementById('gameRoom').classList.remove('hidden');
             document.getElementById('roomInfo').innerHTML = `Mã phòng: ${roomId}`;
             document.getElementById('waitingMessage').innerHTML = 'Đang chờ người chơi khác...';
-            updatePlayerLabels();
-            resetHealth();
-            document.getElementById('player2Card').classList.add('opponent-card'); // Hide Player 2 initially
+            updatePlayerCard();
         }
 
         function handleJoinRoom(roomId) {
-            isPlayer1 = false; // Joining player is Player 2
+            isPlayer1 = false;
             currentRoom = roomId;
-            updatePlayerLabels();
-            document.getElementById('player1Card').classList.add('opponent-card'); // Hide Player 1 initially
+            updatePlayerCard();
         }
 
         function handleGameStart({ roomId }) {
@@ -411,7 +474,7 @@
         }
 
 
-        function handleGameResult({ player1Choice, player2Choice, result }) {
+        function handleGameResult({ player1Choice, player2Choice, result, gameOver, winner }) {
             let displayResult;
             if (result === 'Hòa!') {
                 displayResult = 'Hòa!';
@@ -425,12 +488,24 @@
                 (!isPlayer1 && result === 'player1');
 
             if (isCurrentPlayerLoser) {
-                const currentHealth = isPlayer1 ? player1Health : player2Health;
-                document.getElementById('playerHealth').style.width = `${currentHealth - DAMAGE_AMOUNT}%`;
+                if (isPlayer1) {
+                    player1Health -= DAMAGE_AMOUNT;
+                    document.getElementById('playerHealth').style.width = `${player1Health}%`;
+                } else {
+                    player2Health -= DAMAGE_AMOUNT;
+                    document.getElementById('playerHealth').style.width = `${player2Health}%`;
+                }
+
                 document.getElementById('playerCard').classList.add('damage-animation');
                 setTimeout(() => {
                     document.getElementById('playerCard').classList.remove('damage-animation');
                 }, 500);
+            }
+
+            if (gameOver) {
+                const isWinner = (isPlayer1 && winner === 'player1') || (!isPlayer1 && winner === 'player2');
+                showGameEndModal(isWinner);
+                return;
             }
 
             document.getElementById('result').innerHTML = `
@@ -443,6 +518,64 @@
             }
         }
 
+        function showGameEndModal(isWinner) {
+            const modal = document.getElementById('gameEndModal');
+            const messageEl = document.getElementById('gameEndMessage');
+            messageEl.textContent = isWinner ? 'Bạn đã thắng!' : 'Bạn đã thua!';
+            document.getElementById('voteMessage').textContent = 'Bạn có muốn chơi lại không?';
+            modal.classList.remove('hidden');
+            setupVoteListeners();
+        }
+
+        function setupVoteListeners() {
+            if (hasVoted) return;
+
+            document.getElementById('voteYes').addEventListener('click', () => handleVote(true));
+            document.getElementById('voteNo').addEventListener('click', () => handleVote(false));
+        }
+
+        function handlePlayerLeft(message) {
+            document.getElementById('gameEndModal').classList.add('hidden');
+            alert(message);
+            location.reload();
+        }
+
+        function handleVote(wantsRematch) {
+            hasVoted = true;
+
+            // Disable both buttons immediately after voting
+            document.getElementById('voteYes').disabled = true;
+            document.getElementById('voteNo').disabled = true;
+
+            if (!wantsRematch) {
+                // For "Thoát phòng" (Exit Room), immediately emit the vote
+                socket.emit('playerVote', {
+                    roomId: currentRoom,
+                    wantsRematch: false
+                });
+            } else {
+                // For "Chơi lại" (Rematch), show waiting message
+                document.getElementById('voteMessage').textContent = 'Đang chờ đối thủ vote...';
+                socket.emit('playerVote', {
+                    roomId: currentRoom,
+                    wantsRematch: true
+                });
+            }
+        }
+
+        function handlePlayerVoted() {
+            document.getElementById('voteMessage').textContent = 'Đối thủ đã vote xong, đang chờ kết quả...';
+        }
+
+        function handleRematchResult({ rematch }) {
+            if (rematch) {
+                resetGame();
+                document.getElementById('gameEndModal').classList.add('hidden');
+            } else {
+                alert('Một người chơi không muốn chơi lại. Bạn sẽ được chuyển về màn hình chính.');
+                location.reload();
+            }
+        }
 
         function handleRoomError(message) {
             document.getElementById('errorMessage').innerHTML = message;

@@ -2,51 +2,253 @@
 <html>
 
 <head>
-    <title>One Two Three Online</title>
+    <title>Rock Paper Scissors Battle</title>
     <style>
-        .container {
-            text-align: center;
-            margin-top: 50px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .game-section {
-            margin: 20px;
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .battle-arena {
+            display: flex;
+            justify-content: space-between;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .player-card {
+            width: 45%;
+            text-align: center;
+            padding: 1rem;
+            border-radius: 10px;
+            background: #f8f9fa;
+            position: relative;
+        }
+
+        .player-avatar {
+            width: 120px;
+            height: 120px;
+            margin: 1rem auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+        }
+
+        .health-bar-container {
+            width: 100%;
+            height: 20px;
+            background: #e74c3c33;
+            border-radius: 10px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .health-bar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            transition: width 0.5s ease-in-out;
         }
 
         .choice-btn {
-            padding: 10px 20px;
-            margin: 10px;
-            font-size: 16px;
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.2rem;
             cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+
+        .choice-btn:hover {
+            transform: translateY(-2px);
+            background: #2980b9;
+        }
+
+        .damage-animation {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-10px) rotate(-5deg);
+            }
+
+            75% {
+                transform: translateX(10px) rotate(5deg);
+            }
+        }
+
+        .winner-effect {
+            animation: victory 1s ease-in-out infinite;
+        }
+
+        @keyframes victory {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        #result {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f1f8ff;
+            border-radius: 8px;
+            font-size: 1.2rem;
+        }
+
+        #waitingMessage {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            margin: 1rem 0;
+        }
+
+        /* Keep existing styles and add these new styles */
+        .lobby-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .join-room-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type="text"] {
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 200px;
+            text-align: center;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        .room-code {
+            background: #f8f9fa;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            margin: 1rem 0;
+            border: 2px dashed #3498db;
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
-        .error {
-            color: red;
-            margin: 10px 0;
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .player-name {
+            font-size: 1.2rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .player-role {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        .current-player {
+            border: 2px solid #3498db;
+            background: #f7fbfe;
         }
     </style>
-    <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
     <div class="container">
-        <h1>One Two Three Onlinehhhhh</h1>
+        <h1>Rock Paper Scissors Battle</h1>
 
-        <div id="lobby" class="game-section">
-            <button onclick="createRoom()">Tạo phòng mới</button>
-            <div>
+        <div id="initialLobby" class="lobby-container">
+            <button onclick="createRoom()" class="choice-btn">Tạo phòng mới</button>
+            <div class="join-room-container">
                 <input type="text" id="roomInput" placeholder="Nhập mã phòng">
-                <button onclick="joinRoom()">Vào phòng</button>
+                <button onclick="joinRoom()" class="choice-btn">Vào phòng</button>
             </div>
             <div id="errorMessage" class="error"></div>
         </div>
 
         <div id="gameRoom" class="game-section hidden">
-            <div id="roomInfo"></div>
+            <div id="roomInfo" class="room-code"></div>
+
+            <div class="battle-arena">
+                <div class="player-card" id="player1Card">
+                    <div class="player-info">
+                        <div class="player-name" id="player1Name">Player 1</div>
+                        <div class="player-role" id="player1Role"></div>
+                    </div>
+                    <div class="player-avatar">🤺</div>
+                    <div class="health-bar-container">
+                        <div class="health-bar" id="player1Health"></div>
+                    </div>
+                </div>
+
+                <div class="player-card" id="player2Card">
+                    <div class="player-info">
+                        <div class="player-name" id="player2Name">Player 2</div>
+                        <div class="player-role" id="player2Role"></div>
+                    </div>
+                    <div class="player-avatar">🤺</div>
+                    <div class="health-bar-container">
+                        <div class="health-bar" id="player2Health"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="gameControls" class="hidden">
                 <button class="choice-btn" onclick="makeChoice('kéo')">✌️ Kéo</button>
                 <button class="choice-btn" onclick="makeChoice('búa')">✊ Búa</button>
@@ -57,48 +259,90 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         let currentRoom = null;
+        let isPlayer1 = false;
+        let player1Health = 100;
+        let player2Health = 100;
+        const DAMAGE_AMOUNT = 20;
 
-        socket.on('roomCreated', (roomId) => {
-            currentRoom = roomId;
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('gameRoom').classList.remove('hidden');
-            document.getElementById('roomInfo').innerHTML = `Mã phòng: ${roomId}<br>Đang chờ người chơi khác...`;
-        });
+        // --- Socket event listeners ---
+        socket.on('roomCreated', handleRoomCreated);
+        socket.on('joinRoom', handleJoinRoom);
+        socket.on('gameStart', handleGameStart);
+        socket.on('gameResult', handleGameResult);
+        socket.on('roomError', handleRoomError);
+        socket.on('opponentMadeChoice', handleOpponentMadeChoice);
+        socket.on('playerDisconnected', handlePlayerDisconnected);
+        // --- End of Socket event listeners ---
 
-        socket.on('gameStart', ({ roomId, playerCount }) => {
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('gameRoom').classList.remove('hidden');
-            document.getElementById('roomInfo').innerHTML = 'Trò chơi bắt đầu!';
-            document.getElementById('gameControls').classList.remove('hidden');
-        });
+        function updatePlayerLabels() {
+            const currentPlayerCard = isPlayer1 ? 'player1Card' : 'player2Card';
+            const otherPlayerCard = isPlayer1 ? 'player2Card' : 'player1Card';
 
-        socket.on('roomError', (message) => {
-            document.getElementById('errorMessage').innerHTML = message;
+            document.getElementById(currentPlayerCard).classList.add('current-player');
+            document.getElementById(otherPlayerCard).classList.remove('current-player');
+
+            if (isPlayer1) {
+                document.getElementById('player1Role').textContent = '(Bạn)';
+                document.getElementById('player2Role').textContent = '(Đối thủ)';
+            } else {
+                document.getElementById('player1Role').textContent = '(Đối thủ)';
+                document.getElementById('player2Role').textContent = '(Bạn)';
+            }
+        }
+
+
+        function updateHealth(loserPlayer) {
+            if (loserPlayer === 'player1') {
+                player1Health -= DAMAGE_AMOUNT;
+                document.getElementById('player1Health').style.width = `${player1Health}%`;
+            } else {
+                player2Health -= DAMAGE_AMOUNT;
+                document.getElementById('player2Health').style.width = `${player2Health}%`;
+            }
+
+            checkGameOver();
+        }
+
+        function animatePlayer(playerId) {
+            const playerElement = document.getElementById(playerId);
+            playerElement.classList.add('damage-animation');
             setTimeout(() => {
-                document.getElementById('errorMessage').innerHTML = '';
-            }, 3000);
-        });
+                playerElement.classList.remove('damage-animation');
+            }, 500);
+        }
 
-        socket.on('gameResult', ({ player1Choice, player2Choice, result }) => {
-            document.getElementById('result').innerHTML =
-                `Người chơi 1: ${player1Choice}<br>
-                Người chơi 2: ${player2Choice}<br>
-                Kết quả: ${result}`;
+        function checkGameOver() {
+            if (player1Health <= 0 || player2Health <= 0) {
+                const winner = player1Health <= 0 ? 'Người chơi 2' : 'Người chơi 1';
+                document.getElementById('result').innerHTML = `${winner} thắng toàn trận!`;
+                document.getElementById('gameControls').classList.add('hidden');
+
+                // Add victory effect to winner
+                const winnerCard = player1Health <= 0 ? 'player2Card' : 'player1Card';
+                document.getElementById(winnerCard).classList.add('winner-effect');
+
+                setTimeout(resetGame, 3000);
+            }
+        }
+
+        function resetGame() {
+            resetHealth();
+            document.getElementById('player1Card').classList.remove('winner-effect');
+            document.getElementById('player2Card').classList.remove('winner-effect');
             document.getElementById('gameControls').classList.remove('hidden');
-            document.getElementById('waitingMessage').innerHTML = '';
-        });
+            document.getElementById('result').innerHTML = '';
+        }
 
-        socket.on('opponentMadeChoice', () => {
-            document.getElementById('waitingMessage').innerHTML = 'Đối thủ đã chọn xong, đến lượt bạn!';
-        });
-
-        socket.on('playerDisconnected', () => {
-            alert('Người chơi khác đã ngắt kết nối');
-            location.reload();
-        });
+        function resetHealth() {
+            player1Health = 100;
+            player2Health = 100;
+            document.getElementById('player1Health').style.width = '100%';
+            document.getElementById('player2Health').style.width = '100%';
+        }
 
         function createRoom() {
             socket.emit('createRoom');
@@ -109,6 +353,8 @@
             if (roomId) {
                 currentRoom = roomId;
                 socket.emit('joinRoom', roomId);
+                document.getElementById('initialLobby').classList.add('hidden');
+                document.getElementById('gameRoom').classList.remove('hidden');
             } else {
                 document.getElementById('errorMessage').innerHTML = 'Vui lòng nhập mã phòng';
             }
@@ -119,6 +365,70 @@
             document.getElementById('gameControls').classList.add('hidden');
             document.getElementById('waitingMessage').innerHTML = 'Đang chờ người chơi khác...';
         }
+
+
+        // --- Socket event handler functions ---
+        function handleRoomCreated(roomId) {
+            currentRoom = roomId;
+            isPlayer1 = true; // Room creator is Player 1
+            document.getElementById('initialLobby').classList.add('hidden');
+            document.getElementById('gameRoom').classList.remove('hidden');
+            document.getElementById('roomInfo').innerHTML = `Mã phòng: ${roomId}`;
+            document.getElementById('waitingMessage').innerHTML = 'Đang chờ người chơi khác...';
+            updatePlayerLabels();
+            resetHealth();
+        }
+
+        function handleJoinRoom(roomId) {
+            isPlayer1 = false; // Joining player is Player 2
+            currentRoom = roomId;
+            updatePlayerLabels();
+        }
+
+        function handleGameStart({ roomId }) {
+            document.getElementById('waitingMessage').innerHTML = '';
+            document.getElementById('gameControls').classList.remove('hidden');
+            document.getElementById('roomInfo').innerHTML = `Mã phòng: ${roomId}`;
+            updatePlayerLabels();
+            resetHealth();
+        }
+
+        function handleGameResult({ player1Choice, player2Choice, result }) {
+            document.getElementById('result').innerHTML =
+                `Người chơi 1: ${player1Choice}<br>
+                Người chơi 2: ${player2Choice}<br>
+                Kết quả: ${result}`;
+
+            if (result.includes('Người chơi 1 thắng')) {
+                updateHealth('player2');
+                animatePlayer('player2Card');
+            } else if (result.includes('Người chơi 2 thắng')) {
+                updateHealth('player1');
+                animatePlayer('player1Card');
+            }
+
+            document.getElementById('gameControls').classList.remove('hidden');
+            document.getElementById('waitingMessage').innerHTML = '';
+        }
+
+
+        function handleRoomError(message) {
+            document.getElementById('errorMessage').innerHTML = message;
+            setTimeout(() => {
+                document.getElementById('errorMessage').innerHTML = '';
+            }, 3000);
+        }
+
+
+        function handleOpponentMadeChoice() {
+            document.getElementById('waitingMessage').innerHTML = 'Đối thủ đã chọn xong, đến lượt bạn!';
+        }
+
+        function handlePlayerDisconnected() {
+            alert('Người chơi khác đã ngắt kết nối');
+            location.reload();
+        }
+        // --- End of Socket event handler functions ---
     </script>
 </body>
 

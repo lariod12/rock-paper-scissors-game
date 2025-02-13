@@ -10,8 +10,27 @@ app.use(express.static('public'));
 
 const rooms = new Map();
 
+function determineWinner(choice1, choice2) {
+    if (choice1 === choice2) return 'Hòa!';
+    if ((choice1 === 'kéo' && choice2 === 'bao') ||
+        (choice1 === 'búa' && choice2 === 'kéo') ||
+        (choice1 === 'bao' && choice2 === 'búa')) {
+        return 'Người chơi 1 thắng!';
+    }
+    return 'Người chơi 2 thắng!';
+}
+
 io.on('connection', (socket) => {
-    socket.on('createRoom', () => {
+    // --- Socket event handlers ---
+    socket.on('createRoom', handleCreateRoom);
+    socket.on('joinRoom', handleJoinRoom);
+    socket.on('makeChoice', handleMakeChoice);
+    socket.on('disconnect', handleDisconnect);
+    // --- End of Socket event handlers ---
+
+
+    // --- Socket event handler functions ---
+    function handleCreateRoom() {
         const roomId = Math.random().toString(36).substring(7);
         rooms.set(roomId, {
             players: [socket.id],
@@ -19,9 +38,9 @@ io.on('connection', (socket) => {
         });
         socket.join(roomId);
         socket.emit('roomCreated', roomId);
-    });
+    }
 
-    socket.on('joinRoom', (roomId) => {
+    function handleJoinRoom(roomId) {
         const room = rooms.get(roomId);
         if (!room) {
             socket.emit('roomError', 'Phòng không tồn tại');
@@ -41,9 +60,9 @@ io.on('connection', (socket) => {
             roomId: roomId,
             playerCount: room.players.length
         });
-    });
+    }
 
-    socket.on('makeChoice', ({ roomId, choice }) => {
+    function handleMakeChoice({ roomId, choice }) {
         const room = rooms.get(roomId);
         if (room) {
             room.choices[socket.id] = choice;
@@ -66,27 +85,19 @@ io.on('connection', (socket) => {
                 socket.to(roomId).emit('opponentMadeChoice');
             }
         }
-    });
+    }
 
-    socket.on('disconnect', () => {
+    function handleDisconnect() {
         rooms.forEach((room, roomId) => {
             if (room.players.includes(socket.id)) {
                 io.to(roomId).emit('playerDisconnected');
                 rooms.delete(roomId);
             }
         });
-    });
+    }
+    // --- End of Socket event handler functions ---
 });
 
-function determineWinner(choice1, choice2) {
-    if (choice1 === choice2) return 'Hòa!';
-    if ((choice1 === 'kéo' && choice2 === 'bao') ||
-        (choice1 === 'búa' && choice2 === 'kéo') ||
-        (choice1 === 'bao' && choice2 === 'búa')) {
-        return 'Người chơi 1 thắng!';
-    }
-    return 'Người chơi 2 thắng!';
-}
 
 http.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

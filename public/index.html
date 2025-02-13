@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>One Two Three Online</title>
+    <style>
+        .container {
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .game-section {
+            margin: 20px;
+        }
+
+        .choice-btn {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>One Two Three Online</h1>
+
+        <div id="lobby" class="game-section">
+            <button onclick="createRoom()">Tạo phòng mới</button>
+            <div>
+                <input type="text" id="roomInput" placeholder="Nhập mã phòng">
+                <button onclick="joinRoom()">Vào phòng</button>
+            </div>
+            <div id="errorMessage" class="error"></div>
+        </div>
+
+        <div id="gameRoom" class="game-section hidden">
+            <div id="roomInfo"></div>
+            <div id="gameControls" class="hidden">
+                <button class="choice-btn" onclick="makeChoice('kéo')">✌️ Kéo</button>
+                <button class="choice-btn" onclick="makeChoice('búa')">✊ Búa</button>
+                <button class="choice-btn" onclick="makeChoice('bao')">✋ Bao</button>
+            </div>
+            <div id="result"></div>
+            <div id="waitingMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentRoom = null;
+
+        socket.on('roomCreated', (roomId) => {
+            currentRoom = roomId;
+            document.getElementById('lobby').classList.add('hidden');
+            document.getElementById('gameRoom').classList.remove('hidden');
+            document.getElementById('roomInfo').innerHTML = `Mã phòng: ${roomId}<br>Đang chờ người chơi khác...`;
+        });
+
+        socket.on('gameStart', ({ roomId, playerCount }) => {
+            document.getElementById('lobby').classList.add('hidden');
+            document.getElementById('gameRoom').classList.remove('hidden');
+            document.getElementById('roomInfo').innerHTML = 'Trò chơi bắt đầu!';
+            document.getElementById('gameControls').classList.remove('hidden');
+        });
+
+        socket.on('roomError', (message) => {
+            document.getElementById('errorMessage').innerHTML = message;
+            setTimeout(() => {
+                document.getElementById('errorMessage').innerHTML = '';
+            }, 3000);
+        });
+
+        socket.on('gameResult', ({ player1Choice, player2Choice, result }) => {
+            document.getElementById('result').innerHTML =
+                `Người chơi 1: ${player1Choice}<br>
+                Người chơi 2: ${player2Choice}<br>
+                Kết quả: ${result}`;
+            document.getElementById('gameControls').classList.remove('hidden');
+            document.getElementById('waitingMessage').innerHTML = '';
+        });
+
+        socket.on('opponentMadeChoice', () => {
+            document.getElementById('waitingMessage').innerHTML = 'Đối thủ đã chọn xong, đến lượt bạn!';
+        });
+
+        socket.on('playerDisconnected', () => {
+            alert('Người chơi khác đã ngắt kết nối');
+            location.reload();
+        });
+
+        function createRoom() {
+            socket.emit('createRoom');
+        }
+
+        function joinRoom() {
+            const roomId = document.getElementById('roomInput').value.trim();
+            if (roomId) {
+                currentRoom = roomId;
+                socket.emit('joinRoom', roomId);
+            } else {
+                document.getElementById('errorMessage').innerHTML = 'Vui lòng nhập mã phòng';
+            }
+        }
+
+        function makeChoice(choice) {
+            socket.emit('makeChoice', { roomId: currentRoom, choice });
+            document.getElementById('gameControls').classList.add('hidden');
+            document.getElementById('waitingMessage').innerHTML = 'Đang chờ người chơi khác...';
+        }
+    </script>
+</body>
+
+</html>

@@ -15,9 +15,9 @@ function determineWinner(choice1, choice2) {
     if ((choice1 === 'kéo' && choice2 === 'bao') ||
         (choice1 === 'búa' && choice2 === 'kéo') ||
         (choice1 === 'bao' && choice2 === 'búa')) {
-        return 'Người chơi 1 thắng!';
+        return 'player1';
     }
-    return 'Người chơi 2 thắng!';
+    return 'player2';
 }
 
 io.on('connection', (socket) => {

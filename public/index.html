@@ -30,18 +30,19 @@
 
         .battle-arena {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             margin: 2rem 0;
             position: relative;
         }
 
         .player-card {
-            width: 45%;
+            width: 300px;
             text-align: center;
-            padding: 1rem;
+            padding: 1.5rem;
             border-radius: 10px;
             background: #f8f9fa;
             position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .player-avatar {
@@ -206,6 +207,12 @@
             border: 2px solid #3498db;
             background: #f7fbfe;
         }
+
+        .opponent-card .health-bar-container,
+        .opponent-card .player-avatar {
+            opacity: 0;
+            /* Hide opponent's health bar and avatar initially */
+        }
     </style>
 </head>
 
@@ -226,25 +233,14 @@
             <div id="roomInfo" class="room-code"></div>
 
             <div class="battle-arena">
-                <div class="player-card" id="player1Card">
+                <div class="player-card" id="playerCard">
                     <div class="player-info">
-                        <div class="player-name" id="player1Name">Player 1</div>
-                        <div class="player-role" id="player1Role"></div>
+                        <div class="player-name" id="playerName">Player</div>
+                        <div class="player-role" id="playerRole">(Bạn)</div>
                     </div>
                     <div class="player-avatar">🤺</div>
                     <div class="health-bar-container">
-                        <div class="health-bar" id="player1Health"></div>
-                    </div>
-                </div>
-
-                <div class="player-card" id="player2Card">
-                    <div class="player-info">
-                        <div class="player-name" id="player2Name">Player 2</div>
-                        <div class="player-role" id="player2Role"></div>
-                    </div>
-                    <div class="player-avatar">🤺</div>
-                    <div class="health-bar-container">
-                        <div class="health-bar" id="player2Health"></div>
+                        <div class="health-bar" id="playerHealth"></div>
                     </div>
                 </div>
             </div>
@@ -267,6 +263,17 @@
         let player1Health = 100;
         let player2Health = 100;
         const DAMAGE_AMOUNT = 20;
+        let gameResultDisplayed = false; // Flag to track if game result is displayed
+
+        // Add these new variables
+        let playerHealth = 100;
+        let opponentHealth = 100;
+
+        // Add the new function
+        function updatePlayerCard() {
+            document.getElementById('playerName').textContent = isPlayer1 ? 'Player 1' : 'Player 2';
+            document.getElementById('playerHealth').style.width = `${isPlayer1 ? player1Health : player2Health}%`;
+        }
 
         // --- Socket event listeners ---
         socket.on('roomCreated', handleRoomCreated);
@@ -325,16 +332,25 @@
                 const winnerCard = player1Health <= 0 ? 'player2Card' : 'player1Card';
                 document.getElementById(winnerCard).classList.add('winner-effect');
 
+                // Reveal opponent's card and health bar after game over
+                document.getElementById('player1Card').classList.remove('opponent-card');
+                document.getElementById('player2Card').classList.remove('opponent-card');
+
+                gameResultDisplayed = true; // Set flag to true
+
                 setTimeout(resetGame, 3000);
             }
         }
 
         function resetGame() {
-            resetHealth();
-            document.getElementById('player1Card').classList.remove('winner-effect');
-            document.getElementById('player2Card').classList.remove('winner-effect');
-            document.getElementById('gameControls').classList.remove('hidden');
+            player1Health = 100;
+            player2Health = 100;
+            document.getElementById('playerHealth').style.width = '100%';
             document.getElementById('result').innerHTML = '';
+            document.getElementById('waitingMessage').innerHTML = '';
+            document.getElementById('gameControls').classList.remove('hidden');
+            document.getElementById('playerCard').classList.remove('winner-effect');
+            gameResultDisplayed = false;
         }
 
         function resetHealth() {
@@ -377,38 +393,54 @@
             document.getElementById('waitingMessage').innerHTML = 'Đang chờ người chơi khác...';
             updatePlayerLabels();
             resetHealth();
+            document.getElementById('player2Card').classList.add('opponent-card'); // Hide Player 2 initially
         }
 
         function handleJoinRoom(roomId) {
             isPlayer1 = false; // Joining player is Player 2
             currentRoom = roomId;
             updatePlayerLabels();
+            document.getElementById('player1Card').classList.add('opponent-card'); // Hide Player 1 initially
         }
 
         function handleGameStart({ roomId }) {
             document.getElementById('waitingMessage').innerHTML = '';
             document.getElementById('gameControls').classList.remove('hidden');
             document.getElementById('roomInfo').innerHTML = `Mã phòng: ${roomId}`;
-            updatePlayerLabels();
-            resetHealth();
+            updatePlayerCard();
         }
 
-        function handleGameResult({ player1Choice, player2Choice, result }) {
-            document.getElementById('result').innerHTML =
-                `Người chơi 1: ${player1Choice}<br>
-                Người chơi 2: ${player2Choice}<br>
-                Kết quả: ${result}`;
 
-            if (result.includes('Người chơi 1 thắng')) {
-                updateHealth('player2');
-                animatePlayer('player2Card');
-            } else if (result.includes('Người chơi 2 thắng')) {
-                updateHealth('player1');
-                animatePlayer('player1Card');
+        function handleGameResult({ player1Choice, player2Choice, result }) {
+            let displayResult;
+            if (result === 'Hòa!') {
+                displayResult = 'Hòa!';
+            } else {
+                const isPlayerWinner = (isPlayer1 && result === 'player1') || (!isPlayer1 && result === 'player2');
+                displayResult = isPlayerWinner ? 'Bạn thắng!' : 'Đối thủ thắng!';
             }
 
-            document.getElementById('gameControls').classList.remove('hidden');
-            document.getElementById('waitingMessage').innerHTML = '';
+            const isCurrentPlayerLoser =
+                (isPlayer1 && result === 'player2') ||
+                (!isPlayer1 && result === 'player1');
+
+            if (isCurrentPlayerLoser) {
+                const currentHealth = isPlayer1 ? player1Health : player2Health;
+                document.getElementById('playerHealth').style.width = `${currentHealth - DAMAGE_AMOUNT}%`;
+                document.getElementById('playerCard').classList.add('damage-animation');
+                setTimeout(() => {
+                    document.getElementById('playerCard').classList.remove('damage-animation');
+                }, 500);
+            }
+
+            document.getElementById('result').innerHTML = `
+        Lựa chọn của bạn: ${isPlayer1 ? player1Choice : player2Choice}<br>
+        Kết quả: ${displayResult}`;
+
+            if (!gameResultDisplayed) {
+                document.getElementById('waitingMessage').innerHTML = 'Đến lượt bạn!';
+                document.getElementById('gameControls').classList.remove('hidden');
+            }
         }
 
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <head>
     <title>Rock Paper Scissors Battle</title>
@@ -21,28 +22,45 @@
 
         .container {
             background: white;
-            padding: 2rem;
+            padding: 1rem;
             border-radius: 15px;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-            width: 90%;
+            width: 95%;
             max-width: 800px;
+            margin: 1rem auto;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.75rem;
+                margin: 0.5rem auto;
+            }
         }
 
         .battle-arena {
             display: flex;
             justify-content: center;
-            margin: 2rem 0;
-            position: relative;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .player-card {
-            width: 300px;
-            text-align: center;
-            padding: 1.5rem;
-            border-radius: 10px;
-            background: #f8f9fa;
-            position: relative;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 300px;
+            padding: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .player-card {
+                padding: 0.75rem;
+            }
+
+            .player-avatar {
+                width: 80px;
+                height: 80px;
+                font-size: 2rem;
+            }
         }
 
         .player-avatar {
@@ -76,12 +94,28 @@
             background: #3498db;
             color: white;
             border: none;
-            padding: 15px 30px;
+            padding: 12px 24px;
             border-radius: 8px;
-            font-size: 1.2rem;
+            font-size: 1rem;
             cursor: pointer;
-            margin: 10px;
+            margin: 5px;
             transition: transform 0.2s;
+            min-width: 80px;
+        }
+
+        @media (max-width: 768px) {
+            #gameControls {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+
+            .choice-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+                margin: 3px;
+            }
         }
 
         .choice-btn:hover {
@@ -157,13 +191,24 @@
         }
 
         input[type="text"] {
-            padding: 12px 20px;
+            padding: 10px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 1rem;
-            width: 200px;
+            width: 100%;
+            max-width: 200px;
             text-align: center;
-            transition: border-color 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .join-room-container {
+                width: 90%;
+            }
+
+            input[type="text"] {
+                font-size: 16px;
+                /* Prevents iOS zoom on focus */
+            }
         }
 
         input[type="text"]:focus {
@@ -229,11 +274,28 @@
 
         .modal-content {
             background: white;
-            padding: 2rem;
+            padding: 1.5rem;
             border-radius: 15px;
             text-align: center;
             max-width: 500px;
             width: 90%;
+            margin: 0 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                padding: 1rem;
+                width: 95%;
+            }
+
+            .vote-buttons {
+                flex-direction: column;
+            }
+
+            .vote-buttons .choice-btn {
+                width: 100%;
+                margin: 0.25rem 0;
+            }
         }
 
         .vote-buttons {
@@ -318,7 +380,29 @@
             document.getElementById('playerName').textContent = isPlayer1 ? 'Player 1' : 'Player 2';
             document.getElementById('playerHealth').style.width = `${isPlayer1 ? player1Health : player2Health}%`;
         }
+        // Add to your existing JavaScript
+        document.addEventListener('DOMContentLoaded', function () {
+            // Prevent double-tap zoom on iOS
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', function (event) {
+                const now = (new Date()).getTime();
+                if (now - lastTouchEnd <= 300) {
+                    event.preventDefault();
+                }
+                lastTouchEnd = now;
+            }, false);
 
+            // Add active state for buttons on touch devices
+            const buttons = document.querySelectorAll('.choice-btn');
+            buttons.forEach(button => {
+                button.addEventListener('touchstart', function () {
+                    this.style.opacity = '0.7';
+                });
+                button.addEventListener('touchend', function () {
+                    this.style.opacity = '1';
+                });
+            });
+        });
         // --- Socket event listeners ---// Add new socket event listeners
         socket.on('playerVoted', handlePlayerVoted);
         socket.on('rematchResult', handleRematchResult);
